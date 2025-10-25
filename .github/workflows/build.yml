@@ -1,4 +1,4 @@
-name: Build ztc Kernel
+name: Build esk Kernel
 
 env:
   TZ: Asia/Shanghai
@@ -78,8 +78,8 @@ jobs:
         id: ccache-restore
         with:
           path: ${{ env.CCACHE_DIR }}
-          key: ccache-ztc
-          restore-keys: ccache-ztc
+          key: ccache-esk
+          restore-keys: ccache-esk
       
       - name: 初始化并配置ccache
         run: |
@@ -112,9 +112,9 @@ jobs:
         run: |
           cd kernel_workspace
           echo "正在克隆源码仓库..."
-          aria2c -s16 -x16 -k1M https://github.com/ztc1997/android_gki_kernel_5.10_common/archive/refs/heads/android12-5.10-2025-06.zip -o common.zip && 
+          aria2c -s16 -x16 -k1M https://github.com/ESK-Project/android12-5.10-gki/archive/refs/heads/main.zip -o common.zip && 
           unzip -q common.zip && 
-          mv "android_gki_kernel_5.10_common-android12-5.10-2025-06" common &&
+          mv "android12-5.10-gki-main" common &&
           rm -rf common.zip &
           
           echo "正在克隆llvm-Clang20工具链..." &&
@@ -148,12 +148,15 @@ jobs:
         run: |
           cd kernel_workspace
           git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-${{ env.ANDROID_VERSION }}-${{ env.KERNEL_VERSION }}
+          git clone https://github.com/ShirkNeko/SukiSU_patch.git
           
           cp ./susfs4ksu/kernel_patches/50_add_susfs_in_gki-android12-5.10.patch ./common/
           cp ./susfs4ksu/kernel_patches/fs/* ./common/fs/
           cp ./susfs4ksu/kernel_patches/include/linux/* ./common/include/linux/
+          cp ./SukiSU_patch/hooks/scope_min_manual_hooks_v1.5.patch ./common/
           
           cd ./common
+          patch -p1 < scope_min_manual_hooks_v1.5.patch || true
           patch -p1 --fuzz=3 < 50_add_susfs_in_gki-android12-5.10.patch || true
 
       - name: 添加Re:Kernel
@@ -161,8 +164,11 @@ jobs:
           if [[ "${{ github.event.inputs.rekernel_enable}}" == "1" ]]; then
             git clone https://github.com/Tools-cx-app/Re-Kernel-5-10.git -b main
             mv Re-Kernel-5-10/LKM-Source kernel_workspace/common/drivers/rekernel
-            grep -q "rekernel" "kernel_workspace/common/drivers/Makefile" || printf "\nobj-\$(CONFIG_KSU) += rekernel/\n" >> "kernel_workspace/common/drivers/Makefile" && echo "[+] Modified Makefile."
+            sed -i 's|#include <android/binder_internal.h>|#include "../../drivers/android/binder_internal.h"|' kernel_workspace/common/drivers/rekernel/rekernel.c
+            grep -q "rekernel" "kernel_workspace/common/drivers/Makefile" || printf "\nobj-\$(CONFIG_REKERNEL) += rekernel/\n" >> "kernel_workspace/common/drivers/Makefile" && echo "[+] Modified Makefile."
             grep -q "source \"drivers/rekernel/Kconfig\"" "kernel_workspace/common/drivers/Kconfig" || sed -i "/endmenu/i\source \"drivers/rekernel/Kconfig\"" "kernel_workspace/common/drivers/Kconfig" && echo "[+] Modified Kconfig."
+            echo "CONFIG_REKERNEL=y" >> "kernel_workspace/common/arch/arm64/configs/gki_defconfig"
+            echo "CONFIG_REKERNEL_NETWORK=y" >> "kernel_workspace/common/arch/arm64/configs/gki_defconfig"
           fi
           
       - name: 添加 KSU & SUSFS 配置项
