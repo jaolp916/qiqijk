@@ -439,7 +439,7 @@ jobs:
       - name: 克隆 AnyKernel3 并打包
         run: |
           cd kernel_workspace
-          git clone https://github.com/Tools-cx-app/AnyKernel3.git --depth=1
+          git clone https://github.com/jaolp916/AnyKernel3.git --depth=1
           rm -rf ./AnyKernel3/.git
           cd AnyKernel3
           cp ../common/out/arch/arm64/boot/Image ./Image
@@ -450,30 +450,7 @@ jobs:
           KSU_TYPENAME="RKSU"
           zip -r ../AnyKernel3_${KSU_TYPENAME}_${{ env.KSUVER }}_${{ env.KERNEL_VERSION }}_A12_${{ env.KERNEL_NAME }}.zip ./*
 
-      - name: 上传到 Telegram
-        env:
-          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
-          CHAT_ID: ${{ secrets.CHAT_ID }}
-          BOT_CI_SESSION: ${{ secrets.BOT_CI_SESSION }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          KERNEL: ${{ github.event.inputs.kernel }}
-          REKERNEL: ${{ github.event.inputs.rekernel_enable }}
-          STOCK_CONFIG: ${{ github.event.inputs.stock_config }}
-          LXC: ${{ github.event.inputs.lxc_enable }}
-          BBG: ${{ github.event.inputs.baseband_guard }}
-          BETTER_NET: ${{ github.event.inputs.better_net }}
-          SUSFS: ${{ github.event.inputs.susfs }}
-          ZRAM: ${{ github.event.inputs.zram }}
-          HOOKS: ${{ github.event.inputs.hook_method }}
-        run: |
-          if [ -z ${{ secrets.BOT_TOKEN }} ]; then
-            exit 0
-          fi
-          cd ${{ github.workspace }}
-          pip3 install telethon
-          curl -LSOs https://github.com/Tools-cx-app/gki_build_action/raw/main/.github/bot.py
-          python3 bot.py
-
+      
       - name: 上传 Ccache 调试日志
         if: always() && inputs.ccache_debug
         uses: actions/upload-artifact@v4
